@@ -34,35 +34,35 @@ df['Berat Barang (KG)'] = df['Berat Barang (KG)'].apply(kiloToTon)
 
 df['Penghasilan (IDR)'] = df['Penghasilan (IDR)'].astype(float)
 def simplifyIDR(value):
-    return value / 100000000
+    return value / 1000000000
 df['Penghasilan (IDR)'] = df['Penghasilan (IDR)'].apply(simplifyIDR)
 
 df.rename(columns={'Berat Barang (KG)': 'Berat Barang (Ribuan Ton)'}, inplace=True)
-df.rename(columns={'Penghasilan (IDR)': 'Penghasilan (Ratusan Juta Rupiah)'}, inplace=True)
+df.rename(columns={'Penghasilan (IDR)': 'Penghasilan (Miliar Rupiah)'}, inplace=True)
 
 st.write("### Kita memakai data penjualan {}".format(option))
 df
-correlation = df['Berat Barang (Ribuan Ton)'].corr(df['Penghasilan (Ratusan Juta Rupiah)'])
+correlation = df['Berat Barang (Ribuan Ton)'].corr(df['Penghasilan (Miliar Rupiah)'])
 st.write("Korelasi antar X dan Y adalah {}".format(correlation))
 st.write("Hal ini membuktikan korelasi yang kuat antara X dan Y")
 
 df['TANGGAL PENJUALAN'] = pd.to_datetime(df['TANGGAL PENJUALAN'], format='%m/%d/%Y')
 df['TANGGAL PENJUALAN'] = df['TANGGAL PENJUALAN'].dt.strftime('%m/%Y')
 
-st.write("### Kita kelompokkan data dalam 8 bulan kebelakang")
-df = df.groupby(df['TANGGAL PENJUALAN']).agg({'Berat Barang (Ribuan Ton)': 'sum', 'Penghasilan (Ratusan Juta Rupiah)': 'sum'}).reset_index()
+st.write("### Kita kelompokkan data dalam 7 bulan kebelakang")
+df = df.groupby(df['TANGGAL PENJUALAN']).agg({'Berat Barang (Ribuan Ton)': 'sum', 'Penghasilan (Miliar Rupiah)': 'sum'}).reset_index()
 df
 
 df['X^2'] = df['Berat Barang (Ribuan Ton)'] ** 2
-df['Y^2'] = df['Penghasilan (Ratusan Juta Rupiah)'] ** 2
-df['XY'] = df['Berat Barang (Ribuan Ton)']  * df['Penghasilan (Ratusan Juta Rupiah)']
+df['Y^2'] = df['Penghasilan (Miliar Rupiah)'] ** 2
+df['XY'] = df['Berat Barang (Ribuan Ton)']  * df['Penghasilan (Miliar Rupiah)']
 sigmaX = df['Berat Barang (Ribuan Ton)'].sum()
-sigmaY= df['Penghasilan (Ratusan Juta Rupiah)'].sum()
+sigmaY= df['Penghasilan (Miliar Rupiah)'].sum()
 sigmaXSquare = df['X^2'].sum()
 sigmaXY = df['XY'].sum()
 n = len(df)
 Xbar = df['Berat Barang (Ribuan Ton)'].mean()
-Ybar = df['Penghasilan (Ratusan Juta Rupiah)'].mean()
+Ybar = df['Penghasilan (Miliar Rupiah)'].mean()
 b = ((n*sigmaXY) - (sigmaX * sigmaY))/((n*sigmaXSquare) - (sigmaX**2))
 a = Ybar - (b*Xbar)
 
@@ -86,22 +86,42 @@ hasil_array = np.array(nilai_array)*b + a
 predict = pd.DataFrame({
     'Prediksi Bulan ke-' : bulan_prediksi,
     'Prediksi Penjualan (x1.000 Ton)' : nilai_array,
-    'Prediksi Pendapatan (Dalam Ratusan Juta Rupiah)': hasil_array,
+    'Prediksi Pendapatan (Dalam Miliar Rupiah)': hasil_array,
 })
 
 st.write(predict)
 
-# Menampilkan chart bar menggunakan Matplotlib
-fig, ax = plt.subplots()
-ax.bar(predict.index, predict['Prediksi Pendapatan (Dalam Ratusan Juta Rupiah)'], label='Prediksi Pendapatan (Dalam Ratusan Juta Rupiah)')
-ax.set_ylabel('Prediksi Pendapatan')
-ax.set_title('Prediksi Pendapatan Sesuai dengan Berat Penjualan')
-ax.legend()
+simplify1 = pd.DataFrame({'X1': predict['Prediksi Penjualan (x1.000 Ton)'],
+                         'Y1': predict['Prediksi Pendapatan (Dalam Miliar Rupiah)']})
 
-# Mengganti label sumbu X sesuai dengan input yang diberikan oleh pengguna
-ax.set_xticks(predict.index)
-ax.set_xticklabels(predict['Prediksi Bulan ke-'])
-ax.set_xlabel("Bulan Ke-")
+simplify2 = pd.DataFrame({'X2': df['Berat Barang (Ribuan Ton)'],
+                         'Y2': df['Penghasilan (Miliar Rupiah)']})
+
+
+sorteddf1 = simplify1.sort_values(by='X1', ascending=True)
+sorteddf2 = simplify2.sort_values(by='X2', ascending=True)
+
+combined_df = pd.concat([predict, df['Penghasilan (Miliar Rupiah)']], axis=1)
+
+# Membuat scatter plot dengan matplotlib di Streamlit
+fig, ax = plt.subplots()
+
+# Scatter plot untuk data pertama
+ax.scatter(sorteddf1['X1'], sorteddf1['Y1'], label='Prediksi Pendapatan')
+
+# Scatter plot untuk data kedua
+ax.scatter(sorteddf2['X2'], sorteddf2['Y2'], label='Penghasilan')
+
+# Garis untuk data pertama
+ax.plot(sorteddf1['X1'], sorteddf1['Y1'], linestyle='-', color='blue')
+
+# Garis untuk data kedua
+ax.plot(sorteddf2['X2'], sorteddf2['Y2'], linestyle='-', color='orange')
+
+ax.set_title('Scatter Plot Prediksi dan Penghasilan per Bulan')
+ax.set_xlabel('Berat Penjualan')
+ax.set_ylabel('Pendapatan/Penghasilan (Miliar Rupiah)')
+ax.legend()  # Menampilkan legenda
 
 # Menampilkan plot di Streamlit
 st.pyplot(fig)
